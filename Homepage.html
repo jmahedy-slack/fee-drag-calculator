@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fee Drag Calculator — Ninety One</title>
+<style>
+  :root {
+    --bg-primary: #0b0f19;
+    --bg-card: #131a2a;
+    --border: #1f2a40;
+    --text: #e6ebf5;
+    --muted: #8a97b1;
+    --accent: #60a5fa;
+    --gross: #34d399;
+    --danger: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg-primary);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 2rem;
+  }
+  header { margin-bottom: 1.5rem; }
+  header .brand { color: var(--accent); font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; }
+  h1 { margin: .25rem 0 .25rem; font-size: 1.6rem; }
+  header p { margin: 0; color: var(--muted); }
+  .layout { display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  label { display: block; font-size: .8rem; color: var(--muted); margin: 0 0 .35rem; }
+  .field { margin-bottom: 1.1rem; }
+  input[type=number] {
+    width: 100%; padding: .55rem .7rem; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg-primary); color: var(--text); font-size: 1rem;
+  }
+  input[type=number]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .years-value { float: right; color: var(--accent); font-weight: 600; }
+  .results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+  @media (max-width: 800px) { .results { grid-template-columns: 1fr; } }
+  .metric .label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .metric .value { font-size: 1.5rem; font-weight: 700; margin-top: .35rem; }
+  .metric .sub { font-size: .85rem; color: var(--muted); margin-top: .2rem; }
+  .metric.gross .value { color: var(--gross); }
+  .metric.net .value { color: var(--accent); }
+  .metric.drag .value { color: var(--danger); }
+  .legend { display: flex; gap: 1.25rem; font-size: .8rem; color: var(--muted); margin-bottom: .5rem; }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 3px; margin-right: 6px; vertical-align: middle; }
+  .legend .g::before { background: var(--gross); }
+  .legend .n::before { background: var(--accent); }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--muted); font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Ninety One</div>
+  <h1>Fee Drag Calculator</h1>
+  <p>How ongoing fund charges compound over time.</p>
+</header>
+
+<div class="layout">
+  <form class="card" id="inputs" onsubmit="return false">
+    <div class="field">
+      <label for="amount">Investment amount (£)</label>
+      <input id="amount" type="number" min="0" step="1000" value="100000">
+    </div>
+    <div class="field">
+      <label for="returnPct">Annual return (%)</label>
+      <input id="returnPct" type="number" min="-50" max="50" step="0.1" value="6">
+    </div>
+    <div class="field">
+      <label for="ocfPct">Ongoing charge — OCF (%)</label>
+      <input id="ocfPct" type="number" min="0" max="10" step="0.05" value="0.75">
+    </div>
+    <div class="field">
+      <label for="years">Years <span class="years-value" id="yearsValue">20</span></label>
+      <input id="years" type="range" min="1" max="30" step="1" value="20">
+    </div>
+  </form>
+
+  <main>
+    <div class="results">
+      <div class="card metric gross">
+        <div class="label">Without fees</div>
+        <div class="value" id="gross">–</div>
+      </div>
+      <div class="card metric net">
+        <div class="label">With fees</div>
+        <div class="value" id="net">–</div>
+      </div>
+      <div class="card metric drag">
+        <div class="label">Total fee drag</div>
+        <div class="value" id="drag">–</div>
+        <div class="sub" id="dragPct">–</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="legend"><span class="g">Without fees</span><span class="n">With fees</span></div>
+      <svg id="chart" viewBox="0 0 640 300" role="img" aria-label="Portfolio value with and without fees by year"></svg>
+    </div>
+  </main>
+</div>
+
+<script id="fees">
+function projectFeeDrag(amount, returnPct, ocfPct, years) {
+  const gross = [amount];
+  const net = [amount];
+  const grossRate = 1 + returnPct / 100;
+  const netRate = 1 + (returnPct - ocfPct) / 100;
+  for (let y = 1; y <= years; y++) {
+    gross.push(gross[y - 1] * grossRate);
+    net.push(net[y - 1] * netRate);
+  }
+  const finalGross = gross[years];
+  const finalNet = net[years];
+  const drag = finalGross - finalNet;
+  return {
+    gross,
+    net,
+    finalGross,
+    finalNet,
+    drag,
+    dragPct: finalGross > 0 ? (drag / finalGross) * 100 : 0,
+  };
+}
+</script>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const gbp = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
+const compact = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", notation: "compact", maximumFractionDigits: 1 });
+
+function drawChart(result, years) {
+  const W = 640, H = 300, L = 60, R = 16, T = 12, B = 32;
+  const max = Math.max(...result.gross, 1);
+  const x = (i) => L + (i / years) * (W - L - R);
+  const y = (v) => T + (1 - v / max) * (H - T - B);
+  const path = (series) => series.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+
+  let grid = "";
+  for (let k = 0; k <= 4; k++) {
+    const v = (max / 4) * k;
+    grid += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#1f2a40"/>`;
+    grid += `<text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${compact.format(v)}</text>`;
+  }
+  const step = years <= 10 ? 1 : 5;
+  for (let i = 0; i <= years; i += step) {
+    grid += `<text x="${x(i)}" y="${H - 10}" text-anchor="middle">${i}y</text>`;
+  }
+
+  $("chart").innerHTML = `${grid}
+    <path d="${path(result.gross)}" fill="none" stroke="#34d399" stroke-width="2.5"/>
+    <path d="${path(result.net)}" fill="none" stroke="#60a5fa" stroke-width="2.5"/>`;
+}
+
+function update() {
+  const amount = Math.max(0, parseFloat($("amount").value) || 0);
+  const returnPct = parseFloat($("returnPct").value) || 0;
+  const ocfPct = Math.max(0, parseFloat($("ocfPct").value) || 0);
+  const years = parseInt($("years").value, 10);
+  $("yearsValue").textContent = years;
+
+  const r = projectFeeDrag(amount, returnPct, ocfPct, years);
+  $("gross").textContent = gbp.format(r.finalGross);
+  $("net").textContent = gbp.format(r.finalNet);
+  $("drag").textContent = gbp.format(r.drag);
+  $("dragPct").textContent = `${r.dragPct.toFixed(1)}% of the fee-free value`;
+  drawChart(r, years);
+}
+
+$("inputs").addEventListener("input", update);
+update();
+</script>
+</body>
+</html>

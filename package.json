@@ -1,0 +1,10 @@
+{
+  "name": "fee-drag-calculator",
+  "version": "1.0.0",
+  "description": "Ninety One Fee Drag Calculator — how ongoing fund charges compound over time",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "license": "MIT"
+}
